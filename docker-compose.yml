@@ -1,9 +1,10 @@
 version: "3.7"
 
 services:
+
   model:
    build: 
       context: .
       args:
          insecure: ""
-   image: nhmusgs/model:3.0
+   image: nhmusgs/model
