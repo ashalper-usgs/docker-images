@@ -51,14 +51,36 @@ RUN conda install -n base -c defaults -c conda-forge $insecure \
       xmltodict=0.12.0
 RUN conda clean -a
 
-ENV SOURCE_DIR=/usr/local/src
+ARG SOURCE_DIR=/usr/local/src
 
-# download and unpack onhm-runners
+# onhm-runners
 ARG VERSION_ONHM_RUNNERS=0.1.4
-RUN wget -P $SOURCE_DIR \
+RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
    https://github.com/nhm-usgs/onhm-runners/archive/$VERSION_ONHM_RUNNERS.tar.gz
 RUN cd $SOURCE_DIR && tar -xf $VERSION_ONHM_RUNNERS.tar.gz && \
   rm $VERSION_ONHM_RUNNERS.tar.gz
 
+# gridmETL
+ARG VERSION_TAG_GMETL=v0.22
+RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
+    https://github.com/nhm-usgs/gridmetetl/archive/$VERSION_TAG_GMETL.tar.gz
+RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_GMETL.tar.gz && \
+  rm $VERSION_TAG_GMETL.tar.gz
+
+# PRMS
+ARG VERSION_TAG_PRMS=5.1.0.2_linux
+RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
+  https://github.com/nhm-usgs/prms/archive/$VERSION_TAG_PRMS.tar.gz
+RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_PRMS.tar.gz && \
+  rm $VERSION_TAG_PRMS.tar.gz
+RUN cd $SOURCE_DIR/prms-$VERSION_TAG_PRMS && make
+
+# verifier
+ARG VERSION_TAG_VERIFY=0.1.1
+RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
+  https://github.com/nhm-usgs/onhm-verify-eval/archive/$VERSION_TAG_VERIFY.tar.gz
+RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_VERIFY.tar.gz && \
+  rm $VERSION_TAG_VERIFY.tar.gz
+  
 ENV USER=nhm
 RUN useradd -ms /bin/bash $USER
