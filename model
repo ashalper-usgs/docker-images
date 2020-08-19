@@ -1,0 +1,20 @@
+#! /bin/sh
+#
+# U.S. Geological Survey
+#
+# File - model
+#
+# Purpose - NHM container entry-point script.
+#
+# Author - Andrew Halper <ashalper@usgs.gov>
+#
+
+echo "HRU_SOURCE: $HRU_SOURCE"
+
+if [ ! -e /nhm/gridmetetl/nhm_hru_data_gfv11 ]; then
+    echo "downloading HRU data ..."
+    cd /nhm/gridmetetl
+    wget --progress=bar:noscroll --waitretry=3 --retry-connrefused $HRU_SOURCE
+    unzip -o $HRU_DATA_PKG
+    rm $HRU_DATA_PKG
+fi
