@@ -10,11 +10,23 @@
 #
 
 echo "HRU_SOURCE: $HRU_SOURCE"
+echo "PRMS_SOURCE: $PRMS_SOURCE"
 
+# if the HRU data is not on the volume yet ...
 if [ ! -e /nhm/gridmetetl/nhm_hru_data_gfv11 ]; then
     echo "downloading HRU data ..."
     cd /nhm/gridmetetl
     wget --progress=bar:noscroll --waitretry=3 --retry-connrefused $HRU_SOURCE
     unzip -o $HRU_DATA_PKG
     rm $HRU_DATA_PKG
+fi
+
+# if the PRMS data is not on the volume yet ...
+if [ ! -e /nhm/NHM-PRMS_CONUS_GF_1_1 ]; then
+  # ... download it
+  echo "downloading PRMS data ..."
+  cd /nhm
+  wget --progress=bar:noscroll --waitretry=3 --retry-connrefused $PRMS_SOURCE
+  unzip -o $PRMS_DATA_PKG
+  rm $PRMS_DATA_PKG
 fi
