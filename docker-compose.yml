@@ -1,10 +1,17 @@
 version: "3.7"
 
-services:
+volumes:
+  nhm:
+    driver: local
 
+services:
   model:
    build: 
       context: .
       args:
          insecure: ""
    image: nhmusgs/model
+   env_file:
+      - ./nhm.env
+   volumes:
+      - nhm:/nhm
