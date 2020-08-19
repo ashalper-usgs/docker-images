@@ -81,6 +81,20 @@ RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
   https://github.com/nhm-usgs/onhm-verify-eval/archive/$VERSION_TAG_VERIFY.tar.gz
 RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_VERIFY.tar.gz && \
   rm $VERSION_TAG_VERIFY.tar.gz
-  
-ENV USER=nhm
-RUN useradd -ms /bin/bash $USER
+
+# nhm user
+RUN useradd -ms /bin/bash nhm
+
+# data directories
+RUN mkdir -p /nhm/gridmetetl
+RUN chown -R nhm /nhm
+RUN chgrp -R nhm /nhm
+RUN chmod -R 755 /nhm
+
+# install entry-point script
+COPY model /usr/local/bin
+
+USER nhm
+WORKDIR /home/nhm
+
+ENTRYPOINT /usr/local/bin/model
