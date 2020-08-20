@@ -12,6 +12,6 @@ services:
          insecure: ""
    image: nhmusgs/model
    env_file:
-      - ./nhm.env
+    - nhm.env
    volumes:
       - nhm:/nhm
