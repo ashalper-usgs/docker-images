@@ -34,3 +34,26 @@ fi
 RESTART_DATE=`cd /nhm/NHM-PRMS_CONUS_GF_1_1/restart && \
 	      ls -1 *.restart | sort | tail -1 | cut -f1 -d .`
 
+# end date is yesterday
+yesterday=`date --date yesterday --rfc-3339='date'`
+
+# if END_DATE is not set already
+if [ -z "$END_DATE" ]; then
+    END_DATE=$yesterday
+fi
+
+# if START_DATE is not set already
+if [ -z "$START_DATE" ]; then
+    START_DATE=`date --date "$RESTART_DATE +1 day" --rfc-3339='date'`
+fi
+
+if [ -z "$SAVE_RESTART_DATE" ]; then
+    SAVE_RESTART_DATE=`date --date "$yesterday -59 days" --rfc-3339='date'`
+fi
+
+# if we want to run gridMET ...
+if [ "$GRIDMET_DISABLE" != true ]; then
+  # TODO: version number is hard-coded in path here
+  /opt/conda/bin/python -u \
+     ${SOURCE_DIR?"not defined"}/gridmetetl-0.22/gridmetetl/Gridmet_current.py 
+fi
