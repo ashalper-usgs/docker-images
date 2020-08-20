@@ -51,7 +51,7 @@ RUN conda install -n base -c defaults -c conda-forge $insecure \
       xmltodict=0.12.0
 RUN conda clean -a
 
-ARG SOURCE_DIR=/usr/local/src
+ENV SOURCE_DIR=/usr/local/src
 
 # onhm-runners
 ARG VERSION_ONHM_RUNNERS=0.1.4
