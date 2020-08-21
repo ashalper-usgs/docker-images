@@ -47,10 +47,6 @@ if [ -z "$START_DATE" ]; then
     START_DATE=`date --date "$RESTART_DATE +1 day" --rfc-3339='date'`
 fi
 
-if [ -z "$SAVE_RESTART_DATE" ]; then
-    SAVE_RESTART_DATE=`date --date "$yesterday -59 days" --rfc-3339='date'`
-fi
-
 # if we want to run gridMET ...
 if [ "$GRIDMET_DISABLE" != true ]; then
   # TODO: version number is hard-coded in path here
@@ -58,6 +54,7 @@ if [ "$GRIDMET_DISABLE" != true ]; then
      ${SOURCE_DIR?"not defined"}/gridmetetl/gridmetetl/Gridmet_current.py 
 fi
 
+# gridMETETL
 /opt/conda/bin/python \
   -u $SOURCE_DIR/gridmetetl/gridmetetl/gridmet_etl.py \
   -t date -p $START_DATE $END_DATE \
@@ -65,3 +62,65 @@ fi
   -o ${CBH_IDIR?"not defined"} \
   -w /nhm/gridmetetl/nhm_hru_data_gfv11/tmp_Gridmet_weights_hru_v1_1e.csv \
   --partial=true
+
+# ncf2cbh
+/opt/conda/bin/python -u \
+  $SOURCE_DIR/onhm-runners/ncf2cbh/ncf2cbh_gfv11.py \
+  /nhm/NHM-PRMS_CONUS_GF_1_1/input/
+
+# cbhfiller
+/opt/conda/bin/python -u \
+  $SOURCE_DIR/onhm-runners/cbh_filler/cbh_filler.py \
+  ${CBH_IDIR?"not defined"} $CBH_IDIR \
+  $SOURCE_DIR/onhm-runners/cbh_filler/nhm_id.txt \
+  $SOURCE_DIR/onhm-runners/cbh_filler/miss_to_pres_mapping.csv
+
+# PRMS
+
+# start time is $START_DATE in PRMS start_date datetime format
+START_TIME=`date --date $START_DATE +%Y,%m,%d,00,00,00`
+# end time is start date + 1 day in PRMS end_date datetime format
+END_TIME=`date --date $END_DATE +%Y,%m,%d,00,00,00`
+
+# PRMS needs to be run in a directory relative to its data files (in
+# subdirectories)
+cd /nhm/NHM-PRMS_CONUS_GF_1_1
+
+$SOURCE_DIR/prms/prms/prms \
+  -set start_time $START_TIME -set end_time $END_TIME \
+  -set init_vars_from_file 1 \
+  -set var_init_file /nhm/NHM-PRMS_CONUS_GF_1_1/restart/$RESTART_DATE.restart \
+  -set save_vars_to_file 0 \
+  -set var_save_file ${VAR_SAVE_FILE?"not defined"} \
+  -C /nhm/NHM-PRMS_CONUS_GF_1_1/NHM-PRMS.control
+
+# out2ncf
+/opt/conda/bin/python -u \
+  /usr/local/src/onhm-runners/out2ncf/prms_outputs2a_ncf.py \
+  /nhm/NHM-PRMS_CONUS_GF_1_1/
+
+# verifier
+/opt/conda/bin/python -u \
+  /usr/local/src/onhm-verify-eval/src/prms_verifier.py \
+  /nhm/NHM-PRMS_CONUS_GF_1_1/
+
+# PRMS in restart mode
+
+# In operational mode, end time is start date + 1 day in PRMS end_date
+# datetime format.
+if [ "$GRIDMET_DISABLE" != true ]; then
+    END_TIME=`date --date "$yesterday -59 days" +%Y,%m,%d,00,00,00`
+fi
+
+if [ -z "$SAVE_RESTART_DATE" ]; then
+    SAVE_RESTART_DATE=`date --date "$yesterday -59 days" --rfc-3339='date'`
+fi
+
+$SOURCE_DIR/prms/prms/prms \
+  -set start_time $START_TIME -set end_time $END_TIME \
+  -set init_vars_from_file 1 \
+  -set var_init_file /nhm/NHM-PRMS_CONUS_GF_1_1/restart/$RESTART_DATE.restart \
+  -set save_vars_to_file 1 \
+  -set var_save_file \
+       /nhm/NHM-PRMS_CONUS_GF_1_1/restart/$SAVE_RESTART_DATE.restart \
+  -C /nhm/NHM-PRMS_CONUS_GF_1_1/NHM-PRMS.control
