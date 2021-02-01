@@ -12,6 +12,17 @@ FROM continuumio/miniconda3:4.7.12
 
 LABEL maintainer="ashalper@usgs.gov"
 
+# nhm user
+RUN useradd -ms /bin/bash nhm
+ENV HOMEDIR=/home/nhm
+
+# data directories
+VOLUME ["/nhm"]
+RUN mkdir -p /nhm/gridmetetl
+RUN chown -R nhm /nhm
+RUN chgrp -R nhm /nhm
+RUN chmod -R 755 /nhm
+
 # install additional packages
 RUN apt-get update && \
     apt-get -y install dialog file gcc gfortran make procps unzip && \
@@ -82,16 +93,13 @@ ARG VERSION_TAG_PRMS=5.1.0.4_linux
 # Build PRMS
 RUN git -c advice.detachedHead=false clone \
     https://github.com/nhm-usgs/prms.git --branch $VERSION_TAG_PRMS \
-    --depth=1 $NHM_SOURCE_DIR/prms && \
-    cd $NHM_SOURCE_DIR/prms && \
+    --depth=1 $SOURCE_DIR/prms && \
+    cd $SOURCE_DIR/prms && \
     make && \
     rm -rf .git || true && \
     rm .gitignore || true && \
     rm Makefile || true && \
     rm makelist || true
-COPY --chown=nhm prms /usr/local/bin
-RUN chmod 744 /usr/local/bin/prms && \
-    chown -R $USER $NHM_SOURCE_DIR/prms
 
 # verifier
 ARG VERSION_TAG_VERIFY=0.1.1
@@ -104,15 +112,6 @@ RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_VERIFY.tar.gz && \
 # nhm user
 USER nhm
 WORKDIR /home/nhm
-RUN useradd -ms /bin/bash nhm
-ENV HOMEDIR=/home/$USER
-
-# data directories
-VOLUME ["/nhm"]
-RUN mkdir -p /nhm/gridmetetl
-RUN chown -R nhm /nhm
-RUN chgrp -R nhm /nhm
-RUN chmod -R 755 /nhm
 
 # install entry-point script
 COPY model /usr/local/bin
