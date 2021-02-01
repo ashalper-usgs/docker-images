@@ -62,8 +62,6 @@ run () {
     fi
 } # run
 
-COMPOSE_FILES="-f docker-compose.yml"
-
 if [ $hpc = 0 ]; then
   # check for Shifter module
   if ! module list |& grep ' shifter/' > /dev/null 2>&1 ; then
@@ -72,100 +70,10 @@ if [ $hpc = 0 ]; then
   fi
 fi
 
-# start date is the base name of the last restart file;
-# if on HPC ...
-if [ $hpc = 0 ]; then
-  # ... at the moment, it's easier to get at the Shifter volume by
-  # looking in the mount source directory
-  RESTART_DATE=`ls $SOURCE/NHM-PRMS_CONUS_GF_1_1/restart/*.restart | \
-  	        sed 's/^.*\///;s/\.restart$//' | \
-	   	sort | tail -1`
-else
-  # ... use base image to mount the Docker volume and examine its
-  # contents
-  RESTART_DATE=`docker run -it -v nhm_nhm:/nhm \
-  		       -w /nhm/NHM-PRMS_CONUS_GF_1_1/restart \
-                       -e TERM=dumb \
-		       nhmusgs/base bash -c 'ls -1 *.restart' | \
-	   	sort | tail -1 | cut -f1 -d .`
-fi
+run model
 
-echo "RESTART_DATE: $RESTART_DATE"
-
-# end date is yesterday, with MST offset
-yesterday=`TZ=MST date --date yesterday --rfc-3339='date'`
-
-# if END_DATE is not set already
-if [ "$END_DATE" = "" ]; then
-    END_DATE=$yesterday
-fi
-
-# if START_DATE is not set already
-if [ "$START_DATE" = "" ]; then
-    START_DATE=`date --date "$RESTART_DATE +1 day" --rfc-3339='date'`
-fi
-
-if [ "$SAVE_RESTART_DATE" = "" ]; then
-    SAVE_RESTART_DATE=`date --date "$yesterday -59 days" --rfc-3339='date'`
-fi
-
-# if we want to run the gridmet-current service...
-if [ "$GRIDMET_CURRENT_DISABLE" != true ]; then
-    run gridmet-current
-    if [ $? != 0 ]; then
-      exit $?			# no need to continue
-    fi
-fi
-
-run data-loader
-run ncf2cbh
-run cbhfiller
-
-# PRMS
-
-# start time is $START_DATE in PRMS start_date datetime format
-START_TIME=`date --date $START_DATE +%Y,%m,%d,00,00,00`
-# end time is start date + 1 day in PRMS end_date datetime format
-END_TIME=`date --date $END_DATE +%Y,%m,%d,00,00,00`
-VAR_SAVE_FILE=""
-SAVE_VARS_TO_FILE=0
-
-run nhm-prms
-run out2ncf
-run verifier
-
-# run PRMS service in restart mode
-
-if [ "$GRIDMET_CURRENT_DISABLE" != true ]; then
-  # In operational mode, end time is start date + 1 day in PRMS
-  # end_date datetime format.
-  END_TIME=`date --date "$yesterday -59 days" +%Y,%m,%d,00,00,00`
-fi
-
-SAVE_VARS_TO_FILE=1
-VAR_SAVE_FILE="/nhm/NHM-PRMS_CONUS_GF_1_1/restart/$SAVE_RESTART_DATE.restart"
-run nhm-prms
-
-# copy PRMS output from Docker volume to $OUTPUT_DIR directory on host
-echo "Pipeline has completed. Will copy output files from Docker volume."
-echo "Output files will show up in the \"$OUTPUT_DIR\" directory."
-docker build -t nhmusgs/volume-mounter - <<EOF
-FROM alpine
-CMD
-EOF
-docker container create --name volume_mounter -v nhm_nhm:/nhm \
-       nhmusgs/volume-mounter
-docker cp volume_mounter:/nhm/NHM-PRMS_CONUS_GF_1_1/output $OUTPUT_DIR
-# docker cp volume_mounter:/nhm/NHM-PRMS_CONUS_GF_1_1/input $OUTPUT_DIR
-docker rm volume_mounter
-
-# clean up
-for d in input output; do
-  docker run -v nhm_nhm:/nhm -w /nhm/NHM-PRMS_CONUS_GF_1_1/$d \
-	 nhmusgs/volume-mounter sh -c 'rm -f *.nc'
-done
-docker run -v nhm_nhm:/nhm -w /nhm/gridmetetl/nhm_hru_data_gfv11 \
-       nhmusgs/volume-mounter sh -c 'rm -f *.nc'
+# TODO: copy PRMS output from Docker volume to $OUTPUT_DIR directory
+# on host
 
 # if on HPC ...
 if [ $hpc = 0 ]; then
