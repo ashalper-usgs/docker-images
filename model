@@ -58,8 +58,6 @@ if [ "$GRIDMET_CURRENT_DISABLE" != true ]; then
     fi
 fi
 
-# TODO: data-loader
-
 # gridmetetl
 /opt/conda/bin/python \
   -u $SOURCE_DIR/gridmetetl/gridmetetl/gridmet_etl.py \
