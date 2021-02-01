@@ -9,25 +9,27 @@
 # Author - Andrew Halper <ashalper@usgs.gov>
 #
 
-# if the HRU data is not on the volume yet ...
-if [ ! -e /nhm/gridmetetl/nhm_hru_data_gfv11 ]; then
-    echo "downloading HRU data ..."
+if [ -f /nhm/gridmetetl/$HRU_DATA_PKG ]; then
+    echo "HRU shapefiles already loaded"
+else
     cd /nhm/gridmetetl
-    wget --progress=bar:noscroll --waitretry=3 --retry-connrefused \
-	 ${HRU_SOURCE?"not defined"}
-    unzip -o ${HRU_DATA_PKG?"not defined"}
-    rm $HRU_DATA_PKG
+    # ...download archive
+    wget --waitretry=3 --retry-connrefused "$HRU_SOURCE"
+    # uncompress archive
+    unzip $HRU_DATA_PKG
+    chown -R nhm /nhm/gridmetetl
+    chmod -R 766 /nhm/gridmetetl
 fi
 
-# if the PRMS data is not on the volume yet ...
-if [ ! -e /nhm/NHM-PRMS_CONUS_GF_1_1 ]; then
-  # ... download it
-  echo "downloading PRMS data ..."
-  cd /nhm
-  wget --progress=bar:noscroll --waitretry=3 --retry-connrefused \
-       ${PRMS_SOURCE?"not defined"}
-  unzip -o ${PRMS_DATA_PKG?"not defined"}
-  rm $PRMS_DATA_PKG
+if [ -f /nhm/$PRMS_DATA_PKG ]; then
+    echo "PRMS workspace already loaded"
+else
+    cd /nhm
+    # ...download it
+    wget --waitretry=3 --retry-connrefused "$PRMS_SOURCE"
+    unzip "$PRMS_DATA_PKG"
+    chown -R nhm /nhm/NHM-PRMS_CONUS_GF_1_1
+    chmod -R 766 /nhm/NHM-PRMS_CONUS_GF_1_1
 fi
 
 # start date is the base name of the last restart file
@@ -54,7 +56,7 @@ if [ "$GRIDMET_DISABLE" != true ]; then
      ${SOURCE_DIR?"not defined"}/gridmetetl/gridmetetl/Gridmet_current.py 
 fi
 
-# gridMETETL
+# gridmetetl
 /opt/conda/bin/python \
   -u $SOURCE_DIR/gridmetetl/gridmetetl/gridmet_etl.py \
   -t date -p $START_DATE $END_DATE \

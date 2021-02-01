@@ -9,7 +9,4 @@
 # Authors -  Andrew Halper
 #
 
-for image in `grep 'image: nhmusgs' docker-compose.yml | cut -d ' ' -f6`; do
-  docker push $image &
-done
-wait
+docker push nhmusgs/model

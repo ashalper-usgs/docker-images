@@ -33,50 +33,65 @@ RUN if [ "$insecure" = -k ]; then \
 # Update/upgrade Conda
 RUN conda update -n base conda -y $insecure
 RUN conda install -n base -c defaults -c conda-forge $insecure \
-      python=3.6 \
-      bottleneck=1.2.1 \
-      cartopy=0.17.0 \
-      dask=2.6.0 \
-      geopandas=0.4.1 \
-      jupyter=1.0.0 \
-      matplotlib=3.1.1 \
-      netcdf4=1.4.2 \
-      notebook=5.7.4 \
-      numpy=1.17.2 \
-      pandas=0.25.2 \
-      rasterio=1.0.21 \
-      rasterstats=0.13.1 \
-      scipy=1.3.1 \
-      xarray=0.13.0 \
-      xmltodict=0.12.0
+    python=3.7 \
+    dask \
+    geopandas \
+    nco \
+    netcdf4 \
+    pandas\
+    requests \
+    xarray \
+    xmltodict
 RUN conda clean -a
 
 ENV SOURCE_DIR=/usr/local/src
 
 # onhm-runners
-ARG VERSION_ONHM_RUNNERS=0.1.4
+ARG VERSION_ONHM_RUNNERS=0.1.6
 RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
    https://github.com/nhm-usgs/onhm-runners/archive/$VERSION_ONHM_RUNNERS.tar.gz
-RUN cd $SOURCE_DIR && tar -xf $VERSION_ONHM_RUNNERS.tar.gz && \
-  mv onhm-runners-$VERSION_ONHM_RUNNERS onhm-runners && \
-  rm $VERSION_ONHM_RUNNERS.tar.gz
+RUN cd $SOURCE_DIR && tar -xzf $VERSION_ONHM_RUNNERS.tar.gz
+RUN mv $SOURCE_DIR/onhm-runners-$VERSION_ONHM_RUNNERS $SOURCE_DIR/onhm-runners
+RUN rm $SOURCE_DIR/$VERSION_ONHM_RUNNERS.tar.gz
 
 # gridmETL
-ARG VERSION_TAG_GMETL=v0.22
-RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
-    https://github.com/nhm-usgs/gridmetetl/archive/$VERSION_TAG_GMETL.tar.gz
-RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_GMETL.tar.gz && \
-  mv gridmetetl-`echo $VERSION_TAG_GMETL | cut -c 2-` gridmetetl && \
-  rm $VERSION_TAG_GMETL.tar.gz
+ARG VERSION_TAG_GRIDMETETL=v0.25
+RUN wget -P $SOURCE_DIR https://github.com/nhm-usgs/gridmetetl/archive/$VERSION_TAG_GRIDMETETL.tar.gz
+RUN cd $SOURCE_DIR && tar -xvzf $VERSION_TAG_GRIDMETETL.tar.gz
+# not sure why it's necessary to omit the "v" from "0.25" here, but it is
+RUN mv $SOURCE_DIR/gridmetetl-0.25 $SOURCE_DIR/gridmetetl
+RUN rm $SOURCE_DIR/$VERSION_TAG_GRIDMETETL.tar.gz
+RUN mkdir -p /nhm/gridmetetl/Output
+
+# data-loader
+
+# TODO: try to move these environment variables to ../nhm.env. They
+# are defined here because this is the only place we could find where
+# their values are reliably passed into the container.
+
+# HRU data
+ENV HRU_DATA_PKG=Data_hru_shp_gfv11_v1.zip
+ENV HRU_SOURCE=ftp://ftpext.usgs.gov/pub/cr/co/denver/BRR-CR/pub/rmcd/${HRU_DATA_PKG}
+
+# PRMS data file archive
+ENV PRMS_DATA_PKG=NHM-PRMS_CONUS_GF_1_1_v5.1.0.4.zip
+ENV PRMS_SOURCE=ftp://ftpext.usgs.gov/pub/cr/co/denver/BRR-CR/pub/rmcd/${PRMS_DATA_PKG}
 
 # PRMS
-ARG VERSION_TAG_PRMS=5.1.0.2_linux
-RUN wget --progress=bar:force:noscroll -P $SOURCE_DIR \
-  https://github.com/nhm-usgs/prms/archive/$VERSION_TAG_PRMS.tar.gz
-RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_PRMS.tar.gz && \
-  mv prms-$VERSION_TAG_PRMS prms && \
-  rm $VERSION_TAG_PRMS.tar.gz
-RUN cd $SOURCE_DIR/prms && make
+ARG VERSION_TAG_PRMS=5.1.0.4_linux
+# Build PRMS
+RUN git -c advice.detachedHead=false clone \
+    https://github.com/nhm-usgs/prms.git --branch $VERSION_TAG_PRMS \
+    --depth=1 $NHM_SOURCE_DIR/prms && \
+    cd $NHM_SOURCE_DIR/prms && \
+    make && \
+    rm -rf .git || true && \
+    rm .gitignore || true && \
+    rm Makefile || true && \
+    rm makelist || true
+COPY --chown=nhm prms /usr/local/bin
+RUN chmod 744 /usr/local/bin/prms && \
+    chown -R $USER $NHM_SOURCE_DIR/prms
 
 # verifier
 ARG VERSION_TAG_VERIFY=0.1.1
@@ -87,9 +102,13 @@ RUN cd $SOURCE_DIR && tar -xf $VERSION_TAG_VERIFY.tar.gz && \
   rm $VERSION_TAG_VERIFY.tar.gz
 
 # nhm user
+USER nhm
+WORKDIR /home/nhm
 RUN useradd -ms /bin/bash nhm
+ENV HOMEDIR=/home/$USER
 
 # data directories
+VOLUME ["/nhm"]
 RUN mkdir -p /nhm/gridmetetl
 RUN chown -R nhm /nhm
 RUN chgrp -R nhm /nhm
@@ -97,8 +116,5 @@ RUN chmod -R 755 /nhm
 
 # install entry-point script
 COPY model /usr/local/bin
-
-USER nhm
-WORKDIR /home/nhm
 
 ENTRYPOINT /usr/local/bin/model
