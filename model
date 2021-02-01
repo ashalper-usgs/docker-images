@@ -49,12 +49,16 @@ if [ -z "$START_DATE" ]; then
     START_DATE=`date --date "$RESTART_DATE +1 day" --rfc-3339='date'`
 fi
 
-# if we want to run gridMET ...
-if [ "$GRIDMET_DISABLE" != true ]; then
-  # TODO: version number is hard-coded in path here
+# if we want to check for current gridMET data ...
+if [ "$GRIDMET_CURRENT_DISABLE" != true ]; then
   /opt/conda/bin/python -u \
-     ${SOURCE_DIR?"not defined"}/gridmetetl/gridmetetl/Gridmet_current.py 
+  ${SOURCE_DIR?"not defined"}/gridmetetl/gridmetetl/Gridmet_current.py
+      if [ $? != 0 ]; then
+      exit $?			# no need to continue
+    fi
 fi
+
+# TODO: data-loader
 
 # gridmetetl
 /opt/conda/bin/python \
@@ -110,7 +114,7 @@ $SOURCE_DIR/prms/prms/prms \
 
 # In operational mode, end time is start date + 1 day in PRMS end_date
 # datetime format.
-if [ "$GRIDMET_DISABLE" != true ]; then
+if [ "$GRIDMET_CURRENT_DISABLE" != true ]; then
     END_TIME=`date --date "$yesterday -59 days" +%Y,%m,%d,00,00,00`
 fi
 
